@@ -1,0 +1,26 @@
+#!/usr/bin/python
+
+import sys
+import openai
+
+# dotenv file is a better idea, but for simplicity sake hardcoded api key below
+openai.api_key = "API KEY HERE"
+
+def generate_response(prompt):
+    model_engine = "text-davinci-003"
+
+    completions = openai.Completion.create(
+        engine=model_engine,
+        prompt=prompt,
+        max_tokens=2896,
+        n=1,
+        stop=None,
+        temperature=0.99,
+    )
+
+    message = completions.choices[0].text
+    print(message)
+    return message.strip()
+
+prompt=sys.argv[1]
+response = generate_response(prompt)
