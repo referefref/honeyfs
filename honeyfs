@@ -1,0 +1,64 @@
+#!/bin/bash
+
+# Command line arguments
+
+USAGE () { echo -e "Usage: bash $0 [-o <Operating System Reference>] [-d <Maximum Folder Depth>] [-f <Maximum Folder Length>]\n" 1>&2; exit 1; }
+while getopts ":o:d:f:h" flag
+do
+	case "${flag}" in
+		o) OS=${OPTARG};;
+		d) maxDepth=${OPTARG};;
+		f) maxFolderLength=${OPTARG};;
+		h) USAGE;;
+		\? ) USAGE;;
+		: ) USAGE;;
+	esac
+done
+
+if [ -z "$OS" ] || [ -z "$maxDepth" ]; then USAGE; fi
+
+((maxDepth++))
+currentDepth=0
+
+make_files () {
+# Loop through and create
+while read folder;
+do
+	if [ "$currentDepth" -ne "$maxDepth" ];
+	then
+		mkdir "$folder"
+		((currentDepth++))
+		# Create a list of files for this folder
+		cd "$folder"
+		chatgpt "Give an example directory listing for the folder $folder in a $OS file system, file names only, one per line, without explanatory text, where subfolders are prefixed with #" | awk 'NF' | head -n $maxFolderLength > files
+		while read file;
+		do
+			if [[ "$file" == *"#"* ]];
+			then
+				# It's a folder hopefully
+				echo "$file" | sed 's/#//g' > "$file"
+				folders=$(cat "$file")
+				make_files
+				rm "$file"
+			else
+				# It's a file!
+				chatgpt "For a file with the filename $file that exists in a folder $folder in a $OS file system, write example contents without explanatory text" > "$file"
+			fi		
+		done < files
+		rm files
+		cd ..
+	else
+		for depth in {1..${currentDepth}}
+		do
+			cd ..
+		done
+		currentDepth=0
+	fi
+done < "$folders"
+}
+
+# Create the root directory structure
+chatgpt "Give an exmaple of the root directory listing of a $OS file system, without explanatory text, file and folder names only, one folder per line, without any special characters" | awk 'NF' > rootDir
+folders="rootDir"
+
+make_files
